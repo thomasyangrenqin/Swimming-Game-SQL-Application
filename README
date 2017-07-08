@@ -1,0 +1,161 @@
+HW6Group Y:
+Renqin Yang (ry13)
+Wanyi Ye (wy13)
+
+To compile the project
+javac Menu.java
+
+To execute the project
+java Mene
+
+
+** For more information, please read the README.pdf file.
+
+Announcment:
+
+We have a comprehensive version of trigger.
+But it cannot apply to the newest version of sample data.
+Because in the newest version of sample data, exists team member have same leg in the same heat!!
+
+If you want to use the comprehensive version:
+
+Here goes the code:
+
+CREATE OR REPLACE FUNCTION Swimtrig()
+RETURNS TRIGGER
+AS $trigger1$
+    BEGIN
+    IF NEW.leg <1 OR NEW.leg>4 THEN
+        RAISE EXCEPTION 'leg cannot be negative or larger than 4';
+    ELSIF NEW.leg IN
+    (SELECT Swim.leg as leg FROM Swim
+    INNER JOIN Participant ON Participant.id = Swim.Participant_id
+    INNER JOIN Org ON Org.id = Participant.org_id
+    WHERE Org.id = (SELECT Org.id AS uid FROM Participant
+    INNER JOIN Org ON Org.id = Participant.org_id
+    WHERE Participant.id = NEW.Participant_id)
+    AND Swim.meet_name = NEW.meet_name
+    AND Swim.event_id = NEW.event_id
+    AND Swim.heat_id = NEW.heat_id)
+    THEN
+        RAISE EXCEPTION 'swimmer cannot take the same leg with his/her teammates';
+    ELSIF (SELECT gender FROM Participant
+    WHERE Participant.id = NEW.Participant_id)
+    NOT IN
+    (SELECT gender FROM Event
+    WHERE Event.id = NEW.event_id)
+    THEN
+        RAISE EXCEPTION 'the gender of the swimmer is not correct for this event';
+    END IF;
+    RETURN NEW;
+    END $trigger1$
+LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS swim_trig ON Swim;
+CREATE TRIGGER swim_trig BEFORE INSERT OR UPDATE ON Swim FOR EACH ROW EXECUTE PROCEDURE Swimtrig();
+
+
+
+Sample Test Case
+
+** For more information, please read the README.pdf file.
+
+Section 1: Load/Save
+--------------------
+    1. Load From File:
+    Using absolute/full path only!
+
+    for example:
+    /Users/user/Documents/Study/RiceU/533/A6/533.csv
+    /Users/user/Documents/Study/RiceU/533/A6/533-1.csv
+
+    2. Save To File
+    Using relative path
+    Just enter file name you want, file will be generated at current working directory.
+    Note that the file name should end with .csv
+
+    for example:
+    out.csv
+
+
+
+Section 2: Insert/Update
+------------------------
+Insert:
+    Insert data with missing value
+
+    for example:
+    Swim,1,E0307,SouthConfed,P364479,1,;
+    Meet,Rice_bbb,,4,U430;
+
+
+Success:
+    You will get an alert on Success.
+
+    for example:
+    Org,U111,SunYatSen,t;
+
+
+Error type 1:
+    Wrong number of keywords
+    you will get an error alert about wrong number of keywords
+
+    Heat,1,E0307;
+
+
+Error type 2:
+    Violate FOREIGN KEY constraint
+    you will get an error alert about Violates FOREIGN KEY Constraint
+
+    for example:
+    Heat,1,E0307,whatever;
+    Swim,1,E0307,whatever,P364479,1,13.5657;
+
+
+Error type 3:
+    Duplicate leg number, will throw SQL Exception
+    you will get an error alert 'leg cannot be negative or larger than 4'
+
+    for example:
+    Swim,1,E0307,SouthConfed,P364479,6,13.5657;
+
+
+
+Section 3: Meet Sheets
+----------------------
+Sample Query:
+
+    for example:
+
+    1
+    SouthConfed
+    2
+    Rice Invitational,Michael
+    3
+    NCAA_Summer,RICE
+    4
+    NCAA_Summer,RICE
+    5
+    Rice Invitational,E0407
+    6
+    Rice
+
+
+Error type 1:
+    Wrong query type
+    * enter not number character in first text Field
+    * enter number < 1 or > 6
+      you will get an error type about wrong query type
+
+    for example:
+    r
+    8
+
+
+Error type 2:
+    Wrong number of query keyword
+    you should get an error alert about wrong number of keyword(s)
+
+    for example:
+    2
+    Rice Invitational
